@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="af">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LEERDERS - AFR KAHOOT Gr 8</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#000;color:#fff;font-family:Arial,sans-serif;padding:16px}.wrap{max-width:900px;margin:auto}
+header,.card{background:#111;border:1px solid #222;border-radius:18px;padding:20px;margin-bottom:16px}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px}h1{font-size:23px;margin:0}h2{margin-top:0}.muted{color:#888}
+.score{background:#000;border:1px solid #333;border-radius:12px;padding:10px 16px;text-align:center}.score small{display:block;color:#888}.score b{font-size:24px}
+input,textarea{width:100%;background:#000;color:#fff;border:1px solid #333;border-radius:10px;padding:13px;margin:7px 0 15px;font-size:15px}textarea{min-height:150px;font-family:monospace}
+button{background:#181818;color:#fff;border:1px solid #444;border-radius:11px;padding:13px 16px;font-weight:bold;cursor:pointer}button:hover{border-color:#666}
+.primary{width:100%;background:#fff;color:#000;border-color:#fff}.demo{width:100%;margin-top:9px}.hidden{display:none!important}
+.top{display:flex;justify-content:space-between;gap:10px}.pill{background:#181818;border:1px solid #444;border-radius:99px;padding:8px 12px;font-size:13px}
+.timer{text-align:center;font-size:56px;font-weight:900;margin:22px 0 12px}.bar{height:8px;background:#222;border-radius:99px;overflow:hidden}.bar i{display:block;height:100%;width:100%;background:#fff;transition:width 1s linear}
+.question{text-align:center;font-size:29px;margin:28px 0}.options{display:grid;grid-template-columns:1fr 1fr;gap:12px}.option{text-align:left;min-height:80px;border:2px solid #333}
+.option.correct{border-color:#0f0;background:#002200}.option.wrong{border-color:#f00;background:#220000}.option:disabled{opacity:1}
+.explain{margin-top:16px;padding:14px;background:#080808;border:1px solid #222;border-radius:10px;color:#bbb;line-height:1.45}.next{width:100%;margin-top:12px;display:none}
+.final{text-align:center}.final strong{font-size:68px}.row{background:#080808;border:1px solid #222;border-radius:10px;padding:12px;margin:8px 0}.rowtop{display:flex;justify-content:space-between}.good{border-left:4px solid #0f0}.bad{border-left:4px solid #f00}.buttons{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}.msg{color:#f66;min-height:18px;font-size:13px}
+@media(max-width:600px){.options,.buttons{grid-template-columns:1fr}h1{font-size:19px}.question{font-size:24px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+<div><h1>LEERDERS - AFR KAHOOT</h1><div class="muted">GR 8 • PLAK KODE VAN JUFFROU</div></div>
+<div class="score"><small>PUNTE</small><b id="topScore">0</b></div>
+</header>
+
+<section id="joinCard" class="card">
+<h2>🎮 Sluit aan</h2><p class="muted">Tik jou naam in en plak die kode van juffrou.</p>
+<label>Jou naam</label><input id="name" maxlength="30" placeholder="Tik jou naam...">
+<label>Toetskode</label><textarea id="code" placeholder="Plak die lang base64-kode hier..."></textarea>
+<button class="primary" onclick="join()">JOIN & PLAY</button>
+<button class="demo" onclick="loadDemo()">DEMO — 5 vrae</button>
+<div id="msg" class="msg"></div>
+</section>
+
+<section id="game" class="card hidden">
+<div class="top"><span class="pill" id="counter"></span><span class="pill" id="topic"></span></div>
+<div class="timer" id="timer">10</div><div class="bar"><i id="bar"></i></div>
+<div class="question" id="question"></div><div class="options" id="options"></div>
+<div class="explain hidden" id="explain"></div><button class="next" id="next" onclick="nextQ()">Volgende →</button>
+</section>
+
+<section id="end" class="card hidden">
+<div class="final"><div class="muted">FINALE PUNTE</div><strong id="finalScore">0</strong><p id="finalMsg" class="muted"></p></div>
+<h2>📋 Uitslae</h2><div id="breakdown"></div>
+<h2 style="margin-top:24px">🏆 Leaderboard — Top 5</h2><div id="leaders"></div>
+<div class="buttons"><button onclick="reset()">Weer Speel</button><button onclick="shareScore()">Share Punte</button></div>
+</section>
+</div>
+
+<script>
+let quiz=[],current=0,score=0,timeLeft=0,timer=null,answered=false,player="",quizTitle="",testId="",results=[];
+const demo={title:"Afrikaans Gr 8 Demo",topic:"Afrikaans Gr 8",time:10,questions:[
+{q:"Wat is die verlede tyd van: \"Ek eet 'n appel\"?",options:["Ek het 'n appel geëet","Ek sal 'n appel eet","Ek is 'n appel geëet","Ek was 'n appel eet"],answer:0,points:1000,explanation:"Die verlede tyd gebruik het + die voltooide deelwoord: Ek het 'n appel geëet."},
+{q:"Wat is die toekomende tyd van: \"Ek loop skool toe\"?",options:["Ek het skool toe geloop","Ek loop skool toe","Ek sal skool toe loop","Ek was skool toe loop"],answer:2,points:1000,explanation:"Die toekomende tyd gebruik sal: Ek sal skool toe loop."},
+{q:"Skryf in die ontkenning: \"Ek het 'n boek.\"",options:["Ek het nie 'n boek nie.","Ek het geen boek.","Ek sal nie 'n boek.","Ek het 'n boek nie."],answer:0,points:1000,explanation:"Afrikaans gebruik die dubbele ontkenning: Ek het nie 'n boek nie."},
+{q:"Verander na die lydende vorm: \"Die hond byt die man.\"",options:["Die man word deur die hond gebyt.","Die man byt die hond.","Die hond word deur die man gebyt.","Die man het die hond gebyt."],answer:0,points:1000,explanation:"Die voorwerp word die onderwerp: Die man word deur die hond gebyt."},
+{q:"Wat is die oortreffende trap van \"mooi\"?",options:["mooier","mees mooi","mooieste","mooiste"],answer:3,points:1000,explanation:"Die trappe is mooi, mooier, mooiste."}
+]};
+
+function join(){
+ player=document.getElementById("name").value.trim();let c=document.getElementById("code").value.trim();
+ if(!player)return msg("⚠️ Tik jou naam in.");
+ if(!c)return msg("⚠️ Plak die kode van juffrou in.");
+ try{
+  let d=JSON.parse(decodeURIComponent(escape(atob(c))));
+  if(!Array.isArray(d.questions))throw Error();
+  quiz=d.questions.map(q=>({q:q.q||q.question,options:q.options||q.answers,answer:Number(q.answer??q.correct),points:Number(q.points||q.p||1000),time:Number(q.time||q.timeLimit||d.time||10),topic:q.topic||d.topic||d.subject||"Afrikaans",explanation:q.explanation||q.explain||"Geen verduideliking beskikbaar."}));
+  quizTitle=d.title||d.name||"Afrikaans Gr 8";testId=d.id||d.test||slug(quizTitle);start();
+ }catch(e){msg("❌ Ongeldige kode. Plak die volledige kode van juffrou.");}
+}
+function msg(x){document.getElementById("msg").textContent=x}
+function loadDemo(){player=document.getElementById("name").value.trim()||"Demo Speler";quiz=demo.questions.map(q=>({...q}));quizTitle=demo.title;testId="demo-afr-gr8";start()}
+function start(){if(!quiz.length)return;current=0;score=0;results=[];document.getElementById("topScore").textContent=0;document.getElementById("joinCard").classList.add("hidden");document.getElementById("end").classList.add("hidden");document.getElementById("game").classList.remove("hidden");showQ()}
+function showQ(){
+ clearInterval(timer);answered=false;let q=quiz[current];timeLeft=q.time||10;
+ document.getElementById("counter").textContent=`Vraag ${current+1}/${quiz.length}`;document.getElementById("topic").textContent=q.topic||"Afrikaans";
+ document.getElementById("question").textContent=q.q;document.getElementById("timer").textContent=timeLeft;document.getElementById("bar").style.width="100%";
+ document.getElementById("explain").classList.add("hidden");document.getElementById("next").style.display="none";
+ let box=document.getElementById("options");box.innerHTML="";
+ q.options.forEach((o,i)=>{let b=document.createElement("button");b.className="option";b.innerHTML="<b>"+String.fromCharCode(65+i)+":</b> "+esc(o);b.onclick=()=>answer(i);box.appendChild(b)});
+ timer=setInterval(()=>{timeLeft--;if(timeLeft<0)timeLeft=0;document.getElementById("timer").textContent=timeLeft;document.getElementById("bar").style.width=Math.max(0,timeLeft/q.time*100)+"%";if(timeLeft<=0){clearInterval(timer);if(!answered)answer(-1)}},1000);
+}
+function answer(choice){
+ if(answered)return;answered=true;clearInterval(timer);let q=quiz[current],buttons=document.querySelectorAll(".option"),correct=choice===q.answer,earned=0;
+ buttons.forEach(b=>b.disabled=true);
+ if(correct){earned=Math.round((q.points||1000)*(timeLeft/(q.time||10)+.5));score+=earned}
+ if(choice>=0&&buttons[choice])buttons[choice].classList.add(correct?"correct":"wrong");
+ if(!correct&&buttons[q.answer])buttons[q.answer].classList.add("correct");
+ document.getElementById("topScore").textContent=score;
+ let ex=document.getElementById("explain");ex.innerHTML="<b>"+(correct?"✅ Korrek!":choice<0?"⏰ Tyd is verby!":"❌ Verkeerd!")+"</b><br>"+(correct?"+"+earned+" punte":"0 punte")+"<br><br>"+esc(q.explanation);ex.classList.remove("hidden");
+ results.push({question:q.q,correct,earned,explanation:q.explanation});let n=document.getElementById("next");n.style.display="block";n.textContent=current===quiz.length-1?"Sien Finale Punte →":"Volgende →";
+}
+function nextQ(){if(current<quiz.length-1){current++;showQ()}else end()}
+function end(){
+ clearInterval(timer);document.getElementById("game").classList.add("hidden");document.getElementById("end").classList.remove("hidden");
+ document.getElementById("finalScore").textContent=score;let good=results.filter(x=>x.correct).length;document.getElementById("finalMsg").textContent=`${good}/${quiz.length} korrek • ${score} punte`;
+ save();renderBreakdown();renderLeaders();
+}
+function renderBreakdown(){let b=document.getElementById("breakdown");b.innerHTML="";results.forEach((r,i)=>{let d=document.createElement("div");d.className="row "+(r.correct?"good":"bad");d.innerHTML=`<div class="rowtop"><b>${r.correct?"✅":"❌"} Vraag ${i+1}</b><b>+${r.earned}</b></div><div class="muted">${esc(r.question)}<br><br>${esc(r.explanation)}</div>`;b.appendChild(d)})}
+function save(){let a=[];try{a=JSON.parse(localStorage.getItem("afr_leader_global"))||[]}catch(e){}a.push({name:player||"Speler",score,test:testId,testName:quizTitle,date:new Date().toISOString()});a.sort((x,y)=>y.score-x.score);localStorage.setItem("afr_leader_global",JSON.stringify(a.slice(0,100)))}
+function renderLeaders(){
+ let a=[];try{a=JSON.parse(localStorage.getItem("afr_leader_global"))||[]}catch(e){}
+ a=a.filter(x=>x.test===testId||x.testName===quizTitle).sort((x,y)=>y.score-x.score).slice(0,5);let box=document.getElementById("leaders");box.innerHTML="";
+ if(!a.length){box.innerHTML='<div class="row muted">Nog geen tellings nie.</div>';return}
+ a.forEach((x,i)=>{let d=document.createElement("div");d.className="row";d.innerHTML=`<div class="rowtop"><span>#${i+1} ${esc(x.name||"Speler")}</span><b>${x.score}</b></div>`;box.appendChild(d)})
+}
+function reset(){clearInterval(timer);quiz=[];score=0;results=[];document.getElementById("topScore").textContent=0;document.getElementById("end").classList.add("hidden");document.getElementById("game").classList.add("hidden");document.getElementById("joinCard").classList.remove("hidden");document.getElementById("code").value="";msg("")}
+function shareScore(){
+ let text=`🎮 AFR KAHOOT Gr 8\nSpeler: ${player}\nToets: ${quizTitle}\nPunte: ${score}`;
+ if(navigator.share)navigator.share({title:"AFR KAHOOT Gr 8",text}).catch(()=>{});else{navigator.clipboard?.writeText(text);alert("Punte is gekopieer!")}
+}
+function slug(s){return String(s).toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,50)}
+function esc(s){return String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;")}
+document.addEventListener("keydown",e=>{if(document.getElementById("game").classList.contains("hidden")||answered)return;let k=e.key.toUpperCase();if(k>="A"&&k<="D"){let i=k.charCodeAt(0)-65,b=document.querySelectorAll(".option");if(i<b.length)answer(i)}});
+</script>
+</body>
+</html>
